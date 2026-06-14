@@ -1,236 +1,87 @@
 ﻿using System.Diagnostics;
 using Silk.NET.SDL;
+using Minesweeper;
+using Minesweeper.Models;
 
-namespace TheAdventure;
+var sdl = Sdl.GetApi();
+var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitEvents | Sdl.InitTimer);
+if (sdlInitResult < 0)
+    throw new InvalidOperationException("Failed to initialize SDL.");
 
-public static class Program
-{
-    public static void Main()
-    {
-        var sdl = new Sdl(new SdlContext());
+const int WinW = 800;
+const int WinH = 700;
+DateTime _lastClickTime = DateTime.MinValue;
+int _lastClickRow = -1, _lastClickCol = -1;
+IntPtr window;
 
-        UInt64 framesRenderedCounter = 0;
-        var timer = new Stopwatch();
-
-        ReadOnlySpan<byte> keyboardState;
-        unsafe
-        {
-            keyboardState = new(sdl.GetKeyboardState(null), (int)KeyCode.Count);
-        }
-
-        Span<byte> mouseButtonStates = stackalloc byte[(int)MouseButton.Count];
-
-        var ev = new Event();
-
-        var sdlInitResult = sdl.Init(Sdl.InitVideo | Sdl.InitAudio | Sdl.InitEvents | Sdl.InitTimer | Sdl.InitGamecontroller |
-                                     Sdl.InitJoystick);
-        if (sdlInitResult < 0)
-        {
-            throw new InvalidOperationException("Failed to initialize SDL.");
-        }
-
-        IntPtr window;
-        unsafe
-        {
-            window = (IntPtr)sdl.CreateWindow(
-                "The Adventure", Sdl.WindowposUndefined, Sdl.WindowposUndefined, 800, 800,
-                (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi
-            );
-
-            if (window == IntPtr.Zero)
-            {
-                var ex = sdl.GetErrorAsException();
-                if (ex != null)
-                {
-                    throw ex;
-                }
-
-                throw new Exception("Failed to create window.");
-            }
-        }
-
-        IntPtr renderer;
-        unsafe
-        {
-            renderer = (IntPtr)sdl.CreateRenderer((Window*)window, -1, (uint)RendererFlags.Accelerated);
-            sdl.RenderSetVSync((Renderer*)renderer, 1);
-        }
-
-        if (renderer == IntPtr.Zero)
-        {
-            var ex = sdl.GetErrorAsException();
-            if (ex != null)
-            {
-                throw ex;
-            }
-
-            throw new Exception("Failed to create renderer.");
-        }
-
-        var startX = 100;
-        var startY = 100;
-        var endX = 200;
-        var endY = 200;
-
-        bool quit = false;
-        while (!quit)
-        {
-            while (sdl.PollEvent(ref ev) != 0)
-            {
-                if (ev.Type == (uint)EventType.Quit)
-                {
-                    quit = true;
-                    break;
-                }
-
-                switch (ev.Type)
-                {
-                    case (uint)EventType.Windowevent:
-                    {
-                        switch (ev.Window.Event)
-                        {
-                            case (byte)WindowEventID.Shown:
-                            case (byte)WindowEventID.Exposed:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.Hidden:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.Moved:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.SizeChanged:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.Minimized:
-                            case (byte)WindowEventID.Maximized:
-                            case (byte)WindowEventID.Restored:
-                                break;
-                            case (byte)WindowEventID.Enter:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.Leave:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.FocusGained:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.FocusLost:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.Close:
-                            {
-                                break;
-                            }
-                            case (byte)WindowEventID.TakeFocus:
-                            {
-                                unsafe
-                                {
-                                    sdl.SetWindowInputFocus(sdl.GetWindowFromID(ev.Window.WindowID));
-                                }
-
-                                break;
-                            }
-                        }
-
-                        break;
-                    }
-
-                    case (uint)EventType.Fingermotion:
-                    {
-                        break;
-                    }
-
-                    case (uint)EventType.Mousemotion:
-                    {
-                        if (keyboardState[(byte)KeyCode.LShift] > 0)
-                        {
-                            endX = ev.Motion.X;
-                            endY = ev.Motion.Y;
-                        }
-                        else
-                        {
-                            startX = ev.Motion.X;
-                            startY = ev.Motion.Y;
-                        }
-
-                        break;
-                    }
-
-                    case (uint)EventType.Fingerdown:
-                    {
-                        mouseButtonStates[(byte)MouseButton.Primary] = 1;
-                        break;
-                    }
-                    case (uint)EventType.Mousebuttondown:
-                    {
-                        mouseButtonStates[ev.Button.Button] = 1;
-                        break;
-                    }
-
-                    case (uint)EventType.Fingerup:
-                    {
-                        mouseButtonStates[(byte)MouseButton.Primary] = 0;
-                        break;
-                    }
-
-                    case (uint)EventType.Mousebuttonup:
-                    {
-                        mouseButtonStates[ev.Button.Button] = 0;
-                        break;
-                    }
-
-                    case (uint)EventType.Mousewheel:
-                    {
-                        break;
-                    }
-
-                    case (uint)EventType.Keyup:
-                    {
-                        break;
-                    }
-
-                    case (uint)EventType.Keydown:
-                    {
-                        Console.WriteLine($"Key down: {(KeyCode)ev.Key.Keysym.Scancode}");
-                        break;
-                    }
-                }
-            }
-
-            var elapsed = timer.Elapsed;
-            timer.Restart();
-
-            // game.render(renderer, RenderEvent{ elapsed, framesRenderedCounter++ });
-            unsafe
-            {
-                var r = (Renderer *)renderer;
-
-                sdl.SetRenderDrawColor(r, 255, 255, 255, 255);
-                sdl.RenderClear(r);
-
-                sdl.SetRenderDrawColor(r, 255, 0, 0, 255);
-                sdl.RenderDrawLine(r, startX, startY, endX, endY);
-
-                sdl.RenderPresent(r);
-            }
-
-            ++framesRenderedCounter;
-        }
-
-        unsafe
-        {
-            sdl.DestroyWindow((Window*)window);
-        }
-
-        sdl.Quit();
-    }
+unsafe {
+    window = (IntPtr)sdl.CreateWindow(
+        "Minesweeper", Sdl.WindowposUndefined, Sdl.WindowposUndefined, WinW, WinH,
+        (uint)WindowFlags.Resizable | (uint)WindowFlags.AllowHighdpi);
+    if (window == IntPtr.Zero) throw new Exception("Failed to create window.");
 }
+
+IntPtr renderer;
+unsafe {
+    renderer = (IntPtr)sdl.CreateRenderer((Window*)window, -1, (uint)RendererFlags.Accelerated);
+    sdl.RenderSetVSync((Renderer*)renderer, 1);
+    if (renderer == IntPtr.Zero) throw new Exception("Failed to create renderer.");
+}
+
+using var game = new GameLogic();
+GameRenderer gameRenderer;
+unsafe {gameRenderer = new GameRenderer(sdl, (Renderer*)renderer, WinW, WinH);}
+var ev = new Event();
+bool quit = false;
+
+while (!quit) {
+    while (sdl.PollEvent(ref ev) != 0) {
+        switch (ev.Type) {
+            case (uint)EventType.Quit:
+                quit = true;
+                break;
+            case (uint)EventType.Mousebuttondown: {
+                int mx = ev.Button.X;
+                int my = ev.Button.Y;
+
+                switch (game.Screen) {
+                    case GameScreen.MainMenu:
+                        var level = gameRenderer.GetMenuButtonClick(mx, my);
+                        if (level != null) game.StartGame(level.Value);
+                        break;
+                    case GameScreen.Playing:
+                        if (game.Board == null) break;
+                        if (!gameRenderer.IsInsideBoard(game.Board, mx, my)) break;
+                        var (row, col) = gameRenderer.GetCellFromMouse(game.Board, mx, my);
+                        // AI-generated
+                        if (ev.Button.Button == 1) {
+                            // detect double click (within 300ms)
+                            var now = DateTime.Now;
+                            if ((now - _lastClickTime).TotalMilliseconds < 300 && _lastClickRow == row && _lastClickCol == col)
+                                game.HandleDoubleClick(row, col);
+                            else
+                                game.HandleLeftClick(row, col);
+                            _lastClickTime = now;
+                            _lastClickRow  = row;
+                            _lastClickCol  = col;
+                        }
+                        else if (ev.Button.Button == 3) game.HandleRightClick(row, col);
+                        break;
+                }
+                break;
+            }
+            case (uint)EventType.Keydown: {
+                int sc = (int)ev.Key.Keysym.Scancode;
+                if (sc == 21) game.Restart(); // R = restart
+                if (sc == 16) game.GoToMenu(); // M = go to menu
+                if (sc == 41) quit = true; // Escape = quit
+                break;
+            }
+        }
+    }
+    game.Update();
+    unsafe {gameRenderer.Render(game);}
+}
+
+unsafe{ sdl.DestroyWindow((Window*)window);}
+sdl.Quit();
