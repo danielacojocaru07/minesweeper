@@ -1,4 +1,4 @@
-# Minesweeper
+# 🚩 Minesweeper
 
 A classic Minesweeper game built in C# with .NET 10, using Silk.NET for SDL2 windowed rendering and SkiaSharp for text.
 
